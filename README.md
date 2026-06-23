@@ -29,7 +29,7 @@
 
 ## Overview
 
-Molecular docking pose search is a computational bottleneck in structure-based drug discovery, and quantum annealing offers a route by recasting the search as a **QUBO** (quadratic unconstrained binary optimization) problem. In practice, getting *dense* docking QUBOs to run **reproducibly** on a real **QPU** depends far more on **hardware-facing controls** — penalty scaling, minor-embedding, chain strength, and annealing schedules — than on the logical formulation, and these controls are rarely tuned as a coupled system.
+Molecular docking pose search is a computational bottleneck in structure-based drug discovery, and quantum annealing offers a route by recasting the search as a **QUBO** (quadratic unconstrained binary optimization) problem. In practice, getting *dense* docking QUBOs to run **reproducibly** on a real **QPU** depends far more on **hardware-facing controls** (penalty scaling, minor-embedding, chain strength, and annealing schedules) than on the logical formulation, and these controls are rarely tuned as a coupled system.
 
 **QDock** is a hardware-aware calibration framework for the **feature-atom-matching (FAM-QUBO)** docking encoding. **Bayesian optimization** explores a physically-bounded penalty domain; **chain strength, anneal time, and schedule shape** are then swept under a **frozen, embedding-isolated** configuration. The result is a **reproducible, target-specific recipe** for dense, constraint-heavy QUBO workloads on sparse-connectivity quantum annealers.
 
@@ -46,7 +46,7 @@ Molecular docking pose search is a computational bottleneck in structure-based d
 
 ---
 
-## Method — FAM-QUBO
+## Method: FAM-QUBO
 
 Binary decision variables encode ligand-atom → pocket-feature assignments:
 
@@ -54,16 +54,16 @@ Binary decision variables encode ligand-atom → pocket-feature assignments:
 x_ij = 1   if ligand atom a_i is matched to pocket feature g_j,   else 0
 ```
 
-The FAM-QUBO energy (manuscript Eq. 13) decomposes into a scoring term plus two penalty terms:
+The FAM-QUBO energy (manuscript Eq. (10)) decomposes into a scoring term plus two penalty terms:
 
 ```
 E(x) = Σ_ij w_ij x_ij  +  K_mono · E_mono(x)  +  K_dist · E_dist(x)
        └──── score ────┘    └─ monogamy / uniqueness ─┘   └─ distance consistency ─┘
 ```
 
-- **E_score** — linear electronegativity / chemistry weights `w_ij`
-- **E_mono** — atom monogamy + feature uniqueness
-- **E_dist** — pairwise distance consistency, penalizing `|d_ik − D_jl| > δ_dist` with fixed tolerance **δ_dist = 1.87 Å**
+- **E_score**: linear electronegativity / chemistry weights `w_ij`
+- **E_mono**: atom monogamy + feature uniqueness
+- **E_dist**: pairwise distance consistency, penalizing `|d_ik − D_jl| > δ_dist` with fixed tolerance **δ_dist = 1.87 Å**
 
 The **penalty pair κ = (K_dist, K_mono)** is the central knob. The discretized search domain is a **21 × 21 = 441-cell** grid: `K_dist ∈ {0.1, 0.5, 1.0, …, 10.0}`, `K_mono ∈ {0.1, 1.0, 2.0, …, 20.0}`.
 
@@ -73,7 +73,7 @@ The **penalty pair κ = (K_dist, K_mono)** is the central knob. The discretized 
 penalty-landscape characterization        (441-cell grid, 5 QPU reps/cell)
             │
             ▼
-Bayesian penalty search                    (GP–Matérn 5/2 + EI, T = 100 QPU calls/run)
+Bayesian penalty search                    (GP-Matérn 5/2 + EI, T = 100 QPU calls/run)
             │
             ▼
 freeze minor-embedding                     (SHA-256 archived, embedding-isolated)
@@ -95,7 +95,7 @@ final target-specific recipe
 
 ## Targets
 
-Two PDB targets were chosen for **embeddability** on current Zephyr-topology hardware — larger ligands or richer pocket sets exhaust physical qubits and couplers during minor-embedding.
+Two PDB targets were chosen for **embeddability** on current Zephyr-topology hardware; larger ligands or richer pocket sets exhaust physical qubits and couplers during minor-embedding.
 
 | Property | **3NQ9** | **4JSZ** |
 |---|---|---|
@@ -132,7 +132,7 @@ All metrics are **feasibility-gated** (confidence target *c* = 0.99 throughout):
 | **Validity** | `#{valid} / Nreads`, where valid ⇔ `E_mono = 0 ∧ E_dist = 0` |
 | **Success** | `#{valid ∧ RMSD ≤ 2 Å} / #{valid}` (conditional on validity) |
 | **Quality** *(primary objective)* | `#{valid ∧ RMSD ≤ 2 Å} / Nreads = Validity × Success` |
-| **`TTS_0.99`** | `n_c · t`, with `n_c = ln(1−0.99) / ln(1−Quality)` — sampling (`t = qpu_access / Nreads`) and wall-clock variants |
+| **`TTS_0.99`** | `n_c · t`, with `n_c = ln(1−0.99) / ln(1−Quality)`; sampling (`t = qpu_access / Nreads`) and wall-clock variants |
 
 ---
 
@@ -156,7 +156,7 @@ All metrics are **feasibility-gated** (confidence target *c* = 0.99 throughout):
 
 ### Stagewise contribution (ablation)
 
-The headline Quality comes from the **full hardware-aware recipe** — not from Bayesian optimization alone. Each stage adds measurable Quality:
+The headline Quality comes from the **full hardware-aware recipe**, not from Bayesian optimization alone. Each stage adds measurable Quality:
 
 | Stage | 3NQ9 | 4JSZ |
 |---|---|---|
@@ -164,7 +164,7 @@ The headline Quality comes from the **full hardware-aware recipe** — not from 
 | (ii) + chain strength cs\* | 0.878 `(+0.187)` | 0.937 `(+0.236)` |
 | (iii) + anneal time 800 µs **(final)** | **0.944** `(+0.066)` | **0.984** `(+0.047)` |
 
-> ⚠️ **On framing.** BO **alone** reaches **0.691 / 0.701** — it locates good penalty regimes using only ~25 % of the full-sweep budget. The **0.944 / 0.984** headline is the *complete* recipe after chain-strength and anneal-time calibration. These are different quantities and should not be conflated.
+> ⚠️ **On framing.** BO **alone** reaches **0.691 / 0.701**: it locates good penalty regimes using only ~25 % of the full-sweep budget. The **0.944 / 0.984** headline is the *complete* recipe after chain-strength and anneal-time calibration. These are different quantities and should not be conflated.
 
 ### Cross-solver benchmark
 
@@ -175,22 +175,22 @@ Reported under wall-clock `TTS_0.99`; each row is an independent run on the same
 | **BO-QA (proposed)** | 3NQ9 | **0.944** | 0.661 | **1.58** |
 | **BO-QA (proposed)** | 4JSZ | **0.984** | 1.197 | **1.10** |
 | NL-hybrid | 3NQ9 / 4JSZ | 0.544 / 0.616 | 0.273 / 0.257 | 177.2 / 148.1 |
-| CQM-hybrid | 3NQ9 / 4JSZ | 0.021 / 0.000 | 1.331 / 2.326 | 15.2 / — |
+| CQM-hybrid | 3NQ9 / 4JSZ | 0.021 / 0.000 | 1.331 / 2.326 | 15.2 / n/a |
 | Simulated Annealing (`neal`) | 3NQ9 / 4JSZ | 0.066 / 0.116 | 0.737 / 0.992 | 160.8 / 88.7 |
 | AutoDock Vina | 3NQ9 / 4JSZ | 0.025 / 0.085 | 1.591 / 0.281 | 201.5 / 33.4 |
-| Gurobi / CPLEX *(120-var subproblem)* | both | 0.000 | 2.5 – 5.2 | — |
+| Gurobi / CPLEX *(120-var subproblem)* | both | 0.000 | 2.5–5.2 | n/a |
 
 **Diagnostics**
 
-- **Exact MIP (Gurobi / CPLEX)** certifies the deterministic QUBO optimum with full validity but Quality = 0 — confirming the energy–accuracy gap (the *exact* optimum is not the native pose).
+- **Exact MIP (Gurobi / CPLEX)** certifies the deterministic QUBO optimum with full validity but Quality = 0, confirming the energy-accuracy gap (the *exact* optimum is not the native pose).
 - **AutoDock Vina**'s energy-ranked Mode 1 fails the 2 Å threshold in 10/10 runs on both targets.
-- **Hybrid reformulations** (BQM, CQM, CQM→BQM) keep full validity but lose Quality (≈ 0) — automatic reformulation does not preserve FAM-QUBO feasibility semantics.
+- **Hybrid reformulations** (BQM, CQM, CQM→BQM) keep full validity but lose Quality (≈ 0); automatic reformulation does not preserve FAM-QUBO feasibility semantics.
 
 ---
 
 ## Reproducibility
 
-Frozen minor-embeddings are archived by SHA-256 — load-bearing for reproducing every QPU result:
+Frozen minor-embeddings are archived by SHA-256, load-bearing for reproducing every QPU result:
 
 | Target | Embedding SHA-256 |
 |---|---|
@@ -210,7 +210,7 @@ QI4U_SONJH7/
 ├── qpu/           # QPU sampling + evaluation
 ├── baselines/     # SA (neal), CQM/BQM/NL hybrid, Gurobi/CPLEX, AutoDock Vina
 ├── sweeps/        # penalty (441-cell), chain-strength, anneal-time, anneal-shape
-├── bo/            # Bayesian optimization (GP–Matérn 5/2 + EI) penalty search
+├── bo/            # Bayesian optimization (GP-Matérn 5/2 + EI) penalty search
 ├── configs/       # sampler_config_*.json  (QPU / hybrid / SA)
 ├── embeddings/    # SHA-256-archived frozen minor-embeddings
 ├── results/       # aggregated CSVs (Quality, TTS)
@@ -218,7 +218,7 @@ QI4U_SONJH7/
 └── poster/        # AQC 2026 poster PDF
 ```
 
-> Raw sweep artifacts are large — consider Git LFS or a separate data release for full run data.
+> Raw sweep artifacts are large; consider Git LFS or a separate data release for full run data.
 
 ---
 
@@ -240,20 +240,20 @@ QI4U_SONJH7/
 
 ## Selected References
 
-- **Zha et al.** (2023), *J. Chem. Theory Comput.* **19**, 9018–9024 — original GPM + FAM QUBO encoding.
-- **Triuzzi et al.** (2025), *Quantum Sci. Technol.* **10**, 045049 — weighted subgraph-isomorphism docking on D-Wave.
-- **Jeong et al.** (2025), *arXiv:2510.04594* — embedding-aware noise modeling (`cs⁽⁰⁾ = √L̄` baseline rule).
-- **Rønnow et al.** (2014), *Science* **345**, 420–424 — canonical TTS definition.
-- **Ravindranath & Sanner** (2016), *Bioinformatics* **32**, 3142–3149 — AutoSite pocket discretization.
-- **Trott & Olson** (2010), *J. Comput. Chem.* **31**, 455–461 — AutoDock Vina.
+- **Zha et al.** (2023), *J. Chem. Theory Comput.* **19**, 9018–9024: original GPM + FAM QUBO encoding.
+- **Triuzzi et al.** (2025), *Quantum Sci. Technol.* **10**, 045049: weighted subgraph-isomorphism docking on D-Wave.
+- **Jeong et al.** (2025), *arXiv:2510.04594*: embedding-aware noise modeling (`cs⁽⁰⁾ = √L̄` baseline rule).
+- **Rønnow et al.** (2014), *Science* **345**, 420–424: canonical TTS definition.
+- **Ravindranath & Sanner** (2016), *Bioinformatics* **32**, 3142–3149: AutoSite pocket discretization.
+- **Trott & Olson** (2010), *J. Comput. Chem.* **31**, 455–461: AutoDock Vina.
 
 ---
 
 ## Authors
 
-- **Jeong-Hun Son**¹ \* — `sjunh027@pusan.ac.kr` · [@SonJH7](https://github.com/SonJH7)
+- **Jeong-Hun Son**¹ \* · `sjunh027@pusan.ac.kr` · [@SonJH7](https://github.com/SonJH7)
 - **Seon-Geun Jeong**² \*
-- **Won-Joo Hwang**¹˒² ✉ *(corresponding)* — `wjhwang@pusan.ac.kr`
+- **Won-Joo Hwang**¹˒² ✉ *(corresponding)* · `wjhwang@pusan.ac.kr`
 
 ¹ School of Computer Science and Engineering, Pusan National University
 ² Department of Information Convergence Engineering, Pusan National University
